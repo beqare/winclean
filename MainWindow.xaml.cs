@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Shapes;
 
 namespace WinClean
 {
@@ -32,24 +34,35 @@ namespace WinClean
             LoadPaths();
         }
 
+        
+
         private void LoadPaths()
-        {
-            try
             {
-                string json = File.ReadAllText("paths.json");
-                paths = JsonSerializer.Deserialize<CleanerPaths>(json);
+                try
+                {
+                    var assembly = Assembly.GetExecutingAssembly();
+                    var resourceName = "winclean.paths.json"; // Namespace + Dateiname
 
-                // Ersetze Platzhalter %USERPROFILE% durch echten Pfad
-                ReplaceUserProfile(paths);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Fehler beim Laden der Pfade: " + ex.Message);
-                paths = new CleanerPaths();
-            }
-        }
+                using Stream stream = assembly.GetManifestResourceStream(resourceName);
+                    if (stream == null)
+                        throw new Exception("Embedded resource nicht gefunden: " + resourceName);
 
-        private void ReplaceUserProfile(CleanerPaths paths)
+                    using StreamReader reader = new(stream);
+                    string json = reader.ReadToEnd();
+
+                    paths = JsonSerializer.Deserialize<CleanerPaths>(json) ?? new CleanerPaths();
+
+                    ReplaceUserProfile(paths);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Fehler beim Laden der Pfade: " + ex.Message);
+                    paths = new CleanerPaths();
+                }
+            }
+
+
+    private void ReplaceUserProfile(CleanerPaths paths)
         {
             void ReplaceInList(List<string> list)
             {

@@ -10,9 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="paths.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <None Remove="paths.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="paths.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
