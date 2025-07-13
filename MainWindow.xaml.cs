@@ -1,12 +1,16 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Shapes;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace WinClean
 {
@@ -24,77 +28,123 @@ namespace WinClean
 
     public partial class MainWindow : Window
     {
-        private CleanerPaths paths = new();
-        private readonly string user = Environment.UserName;
+        private readonly CleanerPaths paths = new();
         private readonly string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        private CancellationTokenSource cancellationTokenSource;
+        private bool isCleaning;
 
         public MainWindow()
         {
             InitializeComponent();
             LoadPaths();
+            InitializeCategoryButtons();
         }
 
-        
+        private void InitializeCategoryButtons()
+        {
+            var categories = new Dictionary<string, List<string>>
+            {
+                { "Temp", paths.Temp },
+                { "System", paths.SystemFolders },
+                { "ProgramData", paths.ProgramData },
+                { "User", paths.User },
+                { "Roaming", paths.Roaming },
+                { "Local", paths.Local },
+                { "LocalLow", paths.LocalLow },
+                { "Browser", paths.Browser }
+            };
+
+            foreach (var category in categories)
+            {
+                var button = new Button
+                {
+                    Content = category.Key,
+                    Width = 120,
+                    Margin = new Thickness(5),
+                    Background = (Brush)new BrushConverter().ConvertFrom("#FFC76565"),
+                    Tag = category.Value
+                };
+                button.Click += async (s, e) => await CleanCategory(button);
+                CategoryButtonsControl.Items.Add(button);
+            }
+        }
 
         private void LoadPaths()
+        {
+            try
             {
-                try
-                {
-                    var assembly = Assembly.GetExecutingAssembly();
-                    var resourceName = "winclean.paths.json"; // Namespace + Dateiname
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "winclean.paths.json";
 
                 using Stream stream = assembly.GetManifestResourceStream(resourceName);
-                    if (stream == null)
-                        throw new Exception("Embedded resource nicht gefunden: " + resourceName);
+                if (stream == null)
+                    throw new FileNotFoundException("Embedded resource not found", resourceName);
 
-                    using StreamReader reader = new(stream);
-                    string json = reader.ReadToEnd();
+                using StreamReader reader = new(stream);
+                string json = reader.ReadToEnd();
 
-                    paths = JsonSerializer.Deserialize<CleanerPaths>(json) ?? new CleanerPaths();
-
-                    ReplaceUserProfile(paths);
-                }
-                catch (Exception ex)
+                var loadedPaths = JsonSerializer.Deserialize<CleanerPaths>(json);
+                if (loadedPaths != null)
                 {
-                    MessageBox.Show("Fehler beim Laden der Pfade: " + ex.Message);
-                    paths = new CleanerPaths();
+                    paths.Temp = loadedPaths.Temp;
+                    paths.ProgramData = loadedPaths.ProgramData;
+                    paths.SystemFolders = loadedPaths.SystemFolders;
+                    paths.User = loadedPaths.User;
+                    paths.Roaming = loadedPaths.Roaming;
+                    paths.Local = loadedPaths.Local;
+                    paths.LocalLow = loadedPaths.LocalLow;
+                    paths.Browser = loadedPaths.Browser;
+
+                    ReplaceUserProfile();
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading paths: {ex.Message}", "Configuration Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
-
-    private void ReplaceUserProfile(CleanerPaths paths)
+        private void ReplaceUserProfile()
         {
-            void ReplaceInList(List<string> list)
+            void ProcessList(List<string> list)
             {
                 for (int i = 0; i < list.Count; i++)
                 {
-                    if (list[i].Contains("%USERPROFILE%"))
-                        list[i] = list[i].Replace("%USERPROFILE%", userProfile);
+                    list[i] = list[i].Replace("%USERPROFILE%", userProfile);
                 }
             }
 
-            ReplaceInList(paths.Temp);
-            ReplaceInList(paths.ProgramData);
-            ReplaceInList(paths.SystemFolders);
-            ReplaceInList(paths.User);
-            ReplaceInList(paths.Roaming);
-            ReplaceInList(paths.Local);
-            ReplaceInList(paths.LocalLow);
-            ReplaceInList(paths.Browser);
+            ProcessList(paths.Temp);
+            ProcessList(paths.ProgramData);
+            ProcessList(paths.SystemFolders);
+            ProcessList(paths.User);
+            ProcessList(paths.Roaming);
+            ProcessList(paths.Local);
+            ProcessList(paths.LocalLow);
+            ProcessList(paths.Browser);
         }
 
-        private async void TempButton_Click(object s, RoutedEventArgs e) => await Clean(paths.Temp.ToArray());
-        private async void SystemButton_Click(object s, RoutedEventArgs e) => await Clean(paths.SystemFolders.ToArray());
-        private async void ProgramDataButton_Click(object s, RoutedEventArgs e) => await Clean(paths.ProgramData.ToArray());
-        private async void UserButton_Click(object s, RoutedEventArgs e) => await Clean(paths.User.ToArray());
-        private async void RoamingButton_Click(object s, RoutedEventArgs e) => await Clean(paths.Roaming.ToArray());
-        private async void LocalButton_Click(object s, RoutedEventArgs e) => await Clean(paths.Local.ToArray());
-        private async void LocalLowButton_Click(object s, RoutedEventArgs e) => await Clean(paths.LocalLow.ToArray());
-        private async void BrowserButton_Click(object s, RoutedEventArgs e) => await Clean(paths.Browser.ToArray());
-
-        private async void AllButton_Click(object s, RoutedEventArgs e)
+        private async Task CleanCategory(Button button)
         {
-            var result = MessageBox.Show("Do you really want to delete all temporary folders?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (isCleaning) return;
+
+            var categoryName = button.Content.ToString();
+            var paths = (List<string>)button.Tag;
+
+            await Clean(paths, categoryName);
+        }
+
+        private async void AllButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (isCleaning) return;
+
+            var result = MessageBox.Show(
+                "Do you really want to delete all temporary folders?",
+                "Confirmation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
             if (result != MessageBoxResult.Yes) return;
 
             var all = paths.Temp
@@ -105,184 +155,257 @@ namespace WinClean
                 .Concat(paths.Local)
                 .Concat(paths.LocalLow)
                 .Concat(paths.Browser)
-                .ToArray();
+                .ToList();
 
-            await Clean(all);
+            await Clean(all, "ALL CATEGORIES");
         }
 
-        private async Task Clean(string[] paths)
+        private async Task Clean(List<string> paths, string categoryName)
         {
-            LogBox.Clear();
-            Log("🧹 Cleaning started...\n");
-
-            long sizeBefore = await Task.Run(() => GetTotalSize(paths));
-
-            await Task.Run(() =>
-            {
-                foreach (var path in paths)
-                {
-                    TryDeleteFilesInFolder(path);
-                }
-            });
-
-            long sizeAfter = await Task.Run(() => GetTotalSize(paths));
-
-            long deletedBytes = sizeBefore - sizeAfter;
-            if (deletedBytes < 0) deletedBytes = 0; // Falls Größe sich erhöht hat (neue Dateien)
-
-            Log($"\n✅ Cleaning finished. Cleaned {FormatBytes(deletedBytes)}.");
-        }
-
-
-        private long TryDeleteFilesInFolder(string folderPath)
-        {
-            long deletedBytes = 0;
-
-            if (!Directory.Exists(folderPath))
-                return 0;
+            isCleaning = true;
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
 
             try
             {
-                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        var info = new FileInfo(file);
-                        long fileSize = info.Length;
+                CleanAllButton.IsEnabled = false;
+                StatusText.Text = $"Cleaning {categoryName}...";
+                LogBox.Clear();
+                Log($"🧹 Cleaning {categoryName} started...\n");
 
-                        File.Delete(file);
-                        deletedBytes += fileSize;
-                        Log($"[✓] Deleted file: {file} ({FormatBytes(fileSize)})");
-                    }
-                    catch
-                    {
-                    }
-                }
+                long sizeBefore = await CalculateTotalSizeAsync(paths, token);
+                long deletedBytes = await DeleteFilesAndFoldersAsync(paths, token);
+                long sizeAfter = await CalculateTotalSizeAsync(paths, token);
+
+                long actualDeletedBytes = sizeBefore - sizeAfter;
+                if (actualDeletedBytes < 0) actualDeletedBytes = 0;
+
+                Log($"\n✅ Cleaning {categoryName} finished. " +
+                    $"Cleaned {FormatBytes(actualDeletedBytes)} " +
+                    $"({FormatBytes(deletedBytes)} reclaimed).");
+            }
+            catch (OperationCanceledException)
+            {
+                Log($"\n⚠️ Cleaning {categoryName} was cancelled.");
+            }
+            catch (Exception ex)
+            {
+                Log($"\n❌ Error during cleaning: {ex.Message}");
+            }
+            finally
+            {
+                StatusText.Text = "";
+                isCleaning = false;
+                CleanAllButton.IsEnabled = true;
+                cancellationTokenSource.Dispose();
+            }
+        }
+
+        private async Task<long> DeleteFilesAndFoldersAsync(List<string> folders, CancellationToken token)
+        {
+            long totalDeletedBytes = 0;
+            var progress = new Progress<string>(Log);
+
+            await Task.Run(() =>
+            {
+                var options = new ParallelOptions
+                {
+                    CancellationToken = token,
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                };
 
                 try
                 {
-                    var dirs = Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length);
-                    foreach (var dir in dirs)
+                    Parallel.ForEach(folders, options, folder =>
                     {
-                        try
-                        {
-                            if (Directory.Exists(dir) && Directory.GetFileSystemEntries(dir).Length == 0)
-                            {
-                                Directory.Delete(dir, false);
-                            }
-                        }
-                        catch { }
+                        if (token.IsCancellationRequested) return;
+                        totalDeletedBytes += DeleteFolderContents(folder, token);
+                    });
+                }
+                catch (OperationCanceledException) { }
+            });
+
+            return totalDeletedBytes;
+        }
+
+        private long DeleteFolderContents(string folderPath, CancellationToken token)
+        {
+            if (!Directory.Exists(folderPath)) return 0;
+
+            long deletedBytes = 0;
+            try
+            {
+                // Delete files
+                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    if (token.IsCancellationRequested) return deletedBytes;
+
+                    try
+                    {
+                        var info = new FileInfo(file);
+                        if (info.IsReadOnly)
+                            info.IsReadOnly = false;
+
+                        File.Delete(file);
+                        deletedBytes += info.Length;
+                        Dispatcher.Invoke(() => Log($"[✓] Deleted: {file}"));
                     }
-                    if (Directory.Exists(folderPath) && Directory.GetFileSystemEntries(folderPath).Length == 0)
+                    catch (Exception ex)
                     {
-                        Directory.Delete(folderPath, false);
+                       
                     }
                 }
-                catch { }
+
+                // Delete directories
+                var directories = Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories)
+                                           .OrderByDescending(d => d.Length);
+
+                foreach (var dir in directories)
+                {
+                    if (token.IsCancellationRequested) break;
+
+                    try
+                    {
+                        if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any())
+                        {
+                            Directory.Delete(dir, false);
+                            Dispatcher.Invoke(() => Log($"[✓] Deleted empty folder: {dir}"));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                      
+                    }
+                }
             }
-            catch
+            catch (Exception ex)
             {
+               
             }
 
             return deletedBytes;
         }
 
-        private void Log(string msg)
+        private async Task<long> CalculateTotalSizeAsync(List<string> folders, CancellationToken token)
         {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                LogBox.AppendText(msg + Environment.NewLine);
-                LogBox.ScrollToEnd();
-            }));
-        }
-        private async void CalculateSizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            LogBox.Clear();
-            Log("🔎 Berechne Gesamtgröße aller Ordner...\n");
-
-            long totalBytes = 0;
-
-            var allPaths = paths.Temp
-                .Concat(paths.SystemFolders)
-                .Concat(paths.ProgramData)
-                .Concat(paths.User)
-                .Concat(paths.Roaming)
-                .Concat(paths.Local)
-                .Concat(paths.LocalLow)
-                .Concat(paths.Browser)
-                .ToArray();
-
+            long totalSize = 0;
             await Task.Run(() =>
             {
-                foreach (var path in allPaths)
+                var options = new ParallelOptions
                 {
-                    if (Directory.Exists(path))
+                    CancellationToken = token,
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                };
+
+                Parallel.ForEach(folders, options, folder =>
+                {
+                    if (Directory.Exists(folder))
                     {
                         try
                         {
-                            long size = GetDirectorySize(path);
-                            totalBytes += size;
-                            Log($"[ℹ] Size: {FormatBytes(size)} - {path}");
+                            long size = CalculateFolderSize(folder);
+                            Interlocked.Add(ref totalSize, size);
+                            Dispatcher.Invoke(() => Log($"[ℹ] Size: {FormatBytes(size)} - {folder}"));
                         }
                         catch (Exception ex)
                         {
-                         
+                            Dispatcher.Invoke(() => Log($"[!] Error calculating size for {folder}: {ex.Message}"));
                         }
                     }
-                    else
-                    {
-                     
-                    }
-                }
+                });
             });
-
-            Log($"\n📊 Total size of all folders: {FormatBytes(totalBytes)}");
+            return totalSize;
         }
 
-        private long GetDirectorySize(string folderPath)
+        private long CalculateFolderSize(string folderPath)
         {
             long size = 0;
-            var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
-            foreach (var file in files)
+            try
             {
-                try
+                var files = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories);
+                foreach (var file in files)
                 {
-                    var info = new FileInfo(file);
-                    size += info.Length;
-                }
-                catch
-                {
+                    try
+                    {
+                        var info = new FileInfo(file);
+                        size += info.Length;
+                    }
+                    catch { /* Ignore individual file errors */ }
                 }
             }
+            catch { /* Ignore directory access errors */ }
             return size;
+        }
+
+        private void Log(string message)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(() => Log(message));
+                return;
+            }
+
+            LogBox.AppendText($"{message}{Environment.NewLine}");
+            LogBox.ScrollToEnd();
         }
 
         private string FormatBytes(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len /= 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
+            if (bytes == 0) return "0 B";
+
+            int magnitude = (int)Math.Log(bytes, 1024);
+            double adjustedSize = bytes / Math.Pow(1024, magnitude);
+
+            return $"{adjustedSize:0.##} {sizes[magnitude]}";
         }
-        private long GetTotalSize(string[] folders)
+
+        private async void CalculateSizeButton_Click(object sender, RoutedEventArgs e)
         {
-            long totalSize = 0;
-            foreach (var folder in folders)
+            if (isCleaning) return;
+
+            isCleaning = true;
+            CleanAllButton.IsEnabled = false;
+
+            try
             {
-                if (Directory.Exists(folder))
-                {
-                    totalSize += GetDirectorySize(folder);
-                }
+                LogBox.Clear();
+                Log("🔎 Calculating total size of all folders...\n");
+
+                var allPaths = paths.Temp.Concat(paths.SystemFolders)
+                    .Concat(paths.ProgramData)
+                    .Concat(paths.User)
+                    .Concat(paths.Roaming)
+                    .Concat(paths.Local)
+                    .Concat(paths.LocalLow)
+                    .Concat(paths.Browser)
+                    .ToList();
+
+                long totalSize = await CalculateTotalSizeAsync(allPaths, CancellationToken.None);
+                Log($"\n📊 Total size: {FormatBytes(totalSize)}");
             }
-            return totalSize;
+            finally
+            {
+                isCleaning = false;
+                CleanAllButton.IsEnabled = true;
+            }
         }
 
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            cancellationTokenSource?.Cancel();
 
+            if (isCleaning)
+            {
+                var result = MessageBox.Show(
+                    "Cleaning is in progress. Are you sure you want to exit?",
+                    "Confirmation",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                e.Cancel = (result != MessageBoxResult.Yes);
+            }
+        }
     }
 }

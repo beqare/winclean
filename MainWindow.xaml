@@ -1,31 +1,47 @@
 ﻿<Window x:Class="WinClean.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WinClean" Height="550" Width="850">
+        xmlns:local="clr-namespace:WinClean"
+        Title="WinClean" Height="550" Width="850"
+        Closing="Window_Closing">
     <Grid Margin="10">
-        <WrapPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Top">
             <Button Content="Calculate Size" Width="120" Margin="5" Click="CalculateSizeButton_Click"/>
-            <Button Content="Temp" Width="120" Margin="5" Click="TempButton_Click" Background="#FFC76565"/>
-            <Button Content="System" Width="120" Margin="5" Click="SystemButton_Click" Background="#FFC76565"/>
-            <Button Content="ProgramData" Width="120" Margin="5" Click="ProgramDataButton_Click" Background="#FFC76565"/>
-            <Button Content="User" Width="120" Margin="5" Click="UserButton_Click" Background="#FFC76565"/>
-            <Button Content="Roaming" Width="120" Margin="5" Click="RoamingButton_Click" Background="#FFC76565"/>
-            <Button Content="Local" Width="120" Margin="5" Click="LocalButton_Click" Background="#FFC76565"/>
-            <Button Content="LocalLow" Width="120" Margin="5" Click="LocalLowButton_Click" Background="#FFC76565"/>
-            <Button Content="Browser" Width="120" Margin="5" Click="BrowserButton_Click" Background="#FFC76565"/>
-            <Button Content="Clean ALL" Width="120" Margin="5" Click="AllButton_Click" Background="#FFC76565"/>
+            <Button x:Name="CleanAllButton" Content="Clean ALL" Width="120" Margin="5" Click="AllButton_Click" Background="#FFC76565"/>
         </WrapPanel>
 
-        <ScrollViewer Margin="0,70,0,0"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Name="LogScrollViewer">
-            <TextBox Name="LogBox"
-                     IsReadOnly="True"
-                     TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Hidden"
-                     BorderThickness="0"
-                     Background="Transparent"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,5">
+            <ItemsControl x:Name="CategoryButtonsControl">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
         </ScrollViewer>
+
+        <Grid Grid.Row="2" Margin="0,10,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="StatusText" Grid.Row="0" Margin="0,0,0,5" TextWrapping="Wrap"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <TextBox x:Name="LogBox"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         BorderThickness="0"
+                         Background="Transparent"/>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Window>
