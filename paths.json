@@ -1,0 +1,65 @@
+{
+  "Temp": [
+    "%USERPROFILE%\\AppData\\Local\\Temp",
+    "%USERPROFILE%\\AppData\\LocalLow\\Temp",
+    "C:\\Windows\\Temp"
+  ],
+  "ProgramData": [
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\History\\Results\\Resource",
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\History\\Results\\Quick",
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Support",
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\MetaStore",
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\History\\ReportLatency\\Latency",
+    "C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\History\\CacheManager",
+    "C:\\ProgramData\\Microsoft\\Windows\\WER\\Temp",
+    "C:\\ProgramData\\Microsoft\\Windows\\WER\\ReportQueue",
+    "C:\\ProgramData\\Microsoft\\Windows\\WER\\ReportArchive",
+    "C:\\ProgramData\\temp"
+  ],
+  "SystemFolders": [
+    "C:\\Windows\\pchealth\\helpctr\\OfflineCache",
+    "C:\\Windows\\pchealth\\ERRORREP",
+    "C:\\Windows\\System32\\Winevt\\Logs",
+    "C:\\Windows\\SysNative\\Winevt\\Logs",
+    "C:\\Windows\\LiveKernelReports",
+    "C:\\Windows\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization",
+    "C:\\Windows\\system32\\catroot2",
+    "C:\\Windows\\SoftwareDistribution\\Download",
+    "C:\\Windows\\Minidump",
+    "C:\\Windows\\Prefetch",
+    "C:\\Windows\\Downloaded Program Files"
+  ],
+  "User": [
+    "%USERPROFILE%\\.cache"
+  ],
+  "Roaming": [
+    "%USERPROFILE%\\AppData\\Roaming\\discord\\Code Cache",
+    "%USERPROFILE%\\AppData\\Roaming\\Microsoft\\Teams\\Code Cache\\js",
+    "%USERPROFILE%\\AppData\\Roaming\\discord\\Code Cache\\js",
+    "%USERPROFILE%\\AppData\\Microsoft\\Windows\\Recent\\AutomaticDestinations",
+    "%USERPROFILE%\\AppData\\Microsoft\\Windows\\Recent\\CustomDestinations"
+  ],
+  "Local": [
+    "%USERPROFILE%\\AppData\\Local\\PCHealth\\ErrorRep\\QSignoff",
+    "%USERPROFILE%\\AppData\\Local\\D3DSCache",
+    "%USERPROFILE%\\AppData\\Local\\Microsoft\\Windows\\AppCache",
+    "%USERPROFILE%\\AppData\\Local\\Microsoft\\Windows\\WebCache",
+    "%USERPROFILE%\\AppData\\Local\\Microsoft\\Windows\\Temporary Internet Files",
+    "%USERPROFILE%\\AppData\\Local\\Microsoft\\Windows\\INetCache\\IE\\",
+    "%USERPROFILE%\\AppData\\Local\\NVIDIA\\DXCache",
+    "%USERPROFILE%\\AppData\\Local\\NVIDIA\\GLCache",
+    "%USERPROFILE%\\AppData\\Local\\CapCut\\User Data\\Cache",
+    "%USERPROFILE%\\AppData\\Local\\pip\\cache"
+  ],
+  "LocalLow": [
+    "%USERPROFILE%\\AppData\\LocalLow\\Microsoft\\CryptnetUrlCache\\Content",
+    "%USERPROFILE%\\AppData\\LocalLow\\Microsoft\\CryptnetUrlCache\\MetaData"
+  ],
+  "Browser": [
+    "%USERPROFILE%\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data",
+    "%USERPROFILE%\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Service Worker\\CacheStorage",
+    "%USERPROFILE%\\AppData\\Local\\Microsoft\\Edge\\User Data\\BrowserMetrics",
+    "%USERPROFILE%\\AppData\\Local\\Opera Software\\Opera Stable\\Default\\Cache\\Cache_Data",
+    "%USERPROFILE%\\AppData\\Local\\Opera Software\\Opera Stable\\Default\\System Cache\\Cache_Data"
+  ]
+}
